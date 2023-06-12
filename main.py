@@ -1,17 +1,21 @@
 import logging
-import requests
-import openai
 import random
+import tracemalloc
+import openai
+import requests
 import datetime
 from typing import Dict
 from requests import RequestException
 from aiogram import Bot, Dispatcher, executor, types
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
 from config import *
 
-openai.api_key = GPT_KEY
+tracemalloc.start()
 logging.basicConfig(level=logging.INFO)
+
+openai.api_key = GPT_KEY
+
+USER = {}
 
 bot = Bot(token=TELEGA_KEY)
 dp = Dispatcher(bot)
@@ -19,16 +23,32 @@ dp = Dispatcher(bot)
 kb = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
 kb.add(KeyboardButton('/help - Инструкция'))
 
+async def user(message):
+    last_name = message.from_user.last_name if message.from_user.last_name is not None else ''
+    first_name = message.from_user.first_name if message.from_user.first_name is not None else ''
+    text = message.text
+    id_ = message.from_user.id
+    data = message.date
+    print(f'Name: {first_name, last_name}, id: {id_}, data: {data}, text_user: {text}')
+    if message.from_user.id != ADMIN:
+        try:
+            USER[message.from_user.id].append(f'Name: {first_name, last_name}, id: {id_}, data: {data}, text: {text}')
+        except:
+            USER[message.from_user.id] = []
+            USER[message.from_user.id].append(f'Name: {first_name, last_name}, id: {id_}, data: {data}, text: {text}')
+
 @dp.message_handler(commands=['start'])
 async def send_welcome(message: types.Message):
     await message.answer(text=random.choice(str_), reply_markup=kb)
+    await user(message)
 
 @dp.message_handler(commands=['help'])
 async def send_welcome(message: types.Message):
     await message.answer(text=error1[3])
+    await user(message)
 
 @dp.message_handler(commands=['weather'])
-async def weather_button(message):
+async def weather_in(message):
     kb = InlineKeyboardMarkup(row_width=2)
     btn = InlineKeyboardButton(text='Бишкек', callback_data='btn1')
     btn1 = InlineKeyboardButton(text='Ош', callback_data='btn2')
@@ -38,6 +58,7 @@ async def weather_button(message):
     btn5 = InlineKeyboardButton(text='Другой город', callback_data='btn6')
     kb.add(btn, btn1, btn2, btn3, btn4, btn5)
     await message.answer('Выберите город:', reply_markup=kb)
+    await user(message)
 
 @dp.callback_query_handler()
 async def check_callback_data(callback: types.CallbackQuery):
@@ -86,7 +107,7 @@ async def check_callback_data(callback: types.CallbackQuery):
         length_of_the_day = sunset_timestamp - sunrise_timestamp
 
         return await callback.message.answer(
-            text=f"***{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}***\n"
+        text=f"***{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}***\n"
             f"Погода в городе: {city}\nТемпература: {cur_weather}C° {wd}\n"
             f"Влажность: {humidity}%\nДавление: {pressure} мм.рт.ст\nВетер: {wind} м/с\n"
             f"Восход солнца: {sunrise_timestamp}\nЗакат солнца: {sunset_timestamp}\nПродолжительность дня: {length_of_the_day}\n"
@@ -120,11 +141,12 @@ async def cryptocurrency(message: types.Message):
     except RequestException as e:
         print(f'Error: {e}')
         await message.reply(text=error1[1])
+    await user(message)
 
 @dp.message_handler(commands=['converter'])  
-async def cryptocurrency(message: types.Message):
+async def converter(message: types.Message):
     try:
-        await message.answer('🔄Обновление данных, подождите')
+        update = await message.answer('🔄Обновление данных, подождите')
         url = f"https://api.apilayer.com/exchangerates_data/convert?to=KGS&from=USD&amount=1"
         url_1 = f"https://api.apilayer.com/exchangerates_data/convert?to=KGS&from=EUR&amount=1"
         url_2 = f"https://api.apilayer.com/exchangerates_data/convert?to=KGS&from=RUB&amount=1"
@@ -151,10 +173,21 @@ async def cryptocurrency(message: types.Message):
             await message.reply("Произошла ошибка при запросе API")
     except:
         await message.reply(text=error1[2])
+    await update.delete()
+    await user(message)
 
 @dp.message_handler(content_types=['video', 'photo', "voice", "audio", "video_note"])
 async def none(message: types.Message):
     await message.reply("Извините, бот не обрабатывает фото, видео и аудиозаписи")
+    await user(message)
+
+@dp.message_handler(commands=['bot'])
+async def user_message(message: types.Message):
+    if message.from_user.id == ADMIN:
+        await message.answer(text=USER)
+    else:
+        await message.answer("Вы не админ")
+        await user(message)
 
 async def ai(prompt):
     try:
@@ -174,15 +207,10 @@ async def ai(prompt):
 async def echo(message: types.Message):
     answer = await ai(message.text)
     if answer != None:
-        last_name = message.from_user.last_name if message.from_user.last_name is not None else ''
-        first_name = message.from_user.first_name if message.from_user.first_name is not None else ''
-        text = message.text
-        id_ = message.from_user.id
-        data = message.date
-        print(f'Name: {first_name, last_name}, id: {id_}, data: {data}, text_user: {text}, text_gpt: {answer}')
         await message.answer(text=answer)
     else:
         await message.reply(text=error1[2])
+        await user(message)
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates = True)

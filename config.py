@@ -5,6 +5,7 @@ GPT_KEY = 'YOUR_GPT_API_KEY' # https://platform.openai.com/
 TELEGA_KEY = 'YOUR_TELEGRAM_API_KEY'
 WEATHER_KEY = 'YOUR_WEATHER_API_KEY' # https://openweathermap.org/
 CONVERTER_KEY = 'YOUR_CONVERTER_API_KEY' # https://apilayer.com/
+ADMIN = 'YOUR_TELEGRAM_ID' # @getmyid_bot
 
 # Словарь ошибок
 #В коде определен словарь ошибок error1, 
