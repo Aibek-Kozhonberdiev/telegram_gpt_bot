@@ -210,7 +210,7 @@ async def echo(message: types.Message):
         await message.answer(text=answer)
     else:
         await message.reply(text=error1[2])
-        await user(message)
+    await user(message)
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates = True)
